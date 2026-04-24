@@ -3,12 +3,21 @@ const axios = require('axios');
 const app = express();
 app.use(express.json());
 
-const TOKEN        = process.env.WHATSAPP_TOKEN;
-const PHONE_ID     = process.env.PHONE_NUMBER_ID;
+// ══════════════════════════════════════════════
+// CONFIGURACIÓN — se llenan con las variables de entorno
+// ══════════════════════════════════════════════
+const TOKEN        = process.env.WHATSAPP_TOKEN;       // Token de acceso
+const PHONE_ID     = process.env.PHONE_NUMBER_ID;      // 1120416664482930
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN || 'conadeamor2024';
 
+// ══════════════════════════════════════════════
+// ESTADO DE CONVERSACIONES (en memoria)
+// ══════════════════════════════════════════════
 const sesiones = {};
 
+// ══════════════════════════════════════════════
+// ENVIAR MENSAJE
+// ══════════════════════════════════════════════
 async function enviarMensaje(telefono, texto) {
   await axios.post(
     `https://graph.facebook.com/v19.0/${PHONE_ID}/messages`,
@@ -22,6 +31,9 @@ async function enviarMensaje(telefono, texto) {
   );
 }
 
+// ══════════════════════════════════════════════
+// MENÚ PRINCIPAL
+// ══════════════════════════════════════════════
 const MENU = `¡Hola! 👋 Soy Michelle Rivero, psicóloga clínica especialista en autismo (TEA). 💙
 
 ¿Qué estás buscando hoy?
@@ -31,10 +43,15 @@ const MENU = `¡Hola! 👋 Soy Michelle Rivero, psicóloga clínica especialista
 3️⃣ Taller relámpago — Cuerpos Validados
 4️⃣ Terapia en línea (adolescentes y adultos)
 5️⃣ Terapia presencial (niños)
-6️⃣ Tengo una duda, prefiero escribirle directamente
+6️⃣ Evaluación integral de autismo
+7️⃣ Test gratuito de autismo — ¿podría ser autismo?
+8️⃣ Tengo una duda, prefiero escribirle directamente
 
 Responde con el número de tu opción 😊`;
 
+// ══════════════════════════════════════════════
+// RESPUESTAS POR OPCIÓN
+// ══════════════════════════════════════════════
 const RESPUESTAS = {
   '1': `📘 *Manual de Autismo — Con A de Amor*
 
@@ -83,9 +100,34 @@ Para conocer disponibilidad, ubicación y tarifas, agenda aquí:
 
 🔗 https://calendly.com/autismoconadeamor/sesion-presencial`,
 
-  '6': `¡Claro! 😊 Escribe tu mensaje y te responderé a la brevedad. 💙`
+  '6': `🔬 *Evaluación Integral de Autismo*
+
+La evaluación integral es un proceso clínico completo para obtener un diagnóstico formal de autismo (TEA).
+
+Incluye entrevista clínica, aplicación de instrumentos validados y un reporte con los resultados y recomendaciones personalizadas.
+
+Está disponible para niños, adolescentes y adultos. 💙
+
+🔗 Conoce todos los detalles aquí:
+https://michellerivero.com/servicios/evaluacion-integral/`,
+
+  '7': `🧩 *Test gratuito de autismo*
+
+¿Te has preguntado si podrías tener autismo? Este test de autoaplicación puede darte claridad.
+
+✅ Completamente gratuito
+✅ Incluye cuestionario de rasgos + sensibilidad auditiva
+✅ Recibes tus resultados por correo
+
+🔗 Haz el test aquí:
+https://michellerivero.com/servicios/test-autoaplicacion/`,
+
+  '8': `¡Claro! 😊 Escribe tu mensaje y te responderé a la brevedad. 💙`
 };
 
+// ══════════════════════════════════════════════
+// WEBHOOK — VERIFICACIÓN
+// ══════════════════════════════════════════════
 app.get('/webhook', (req, res) => {
   if (
     req.query['hub.mode'] === 'subscribe' &&
@@ -98,6 +140,9 @@ app.get('/webhook', (req, res) => {
   }
 });
 
+// ══════════════════════════════════════════════
+// WEBHOOK — RECIBIR MENSAJES
+// ══════════════════════════════════════════════
 app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
   try {
@@ -111,12 +156,14 @@ app.post('/webhook', async (req, res) => {
     const texto    = msg.text?.body?.trim() || '';
     const sesion   = sesiones[telefono] || { paso: 'inicio' };
 
+    // Si ya eligió "tengo una duda" → no responder automáticamente
     if (sesion.paso === 'duda') return;
 
-    if (['1','2','3','4','5','6'].includes(texto)) {
-      sesiones[telefono] = { paso: texto === '6' ? 'duda' : 'menu' };
+    // Si manda un número del menú
+    if (['1','2','3','4','5','6','7','8'].includes(texto)) {
+      sesiones[telefono] = { paso: texto === '8' ? 'duda' : 'menu' };
       await enviarMensaje(telefono, RESPUESTAS[texto]);
-      if (texto !== '6') {
+      if (texto !== '8') {
         setTimeout(async () => {
           await enviarMensaje(telefono,
             '¿Puedo ayudarte con algo más? Responde *menú* para ver las opciones de nuevo. 😊'
@@ -126,6 +173,7 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
+    // Si escribe "menu" o "menú"
     if (['menu','menú','hola','inicio','hi','buenas','buenos'].some(p =>
       texto.toLowerCase().includes(p)
     )) {
@@ -134,6 +182,7 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
+    // Primera vez o mensaje desconocido → mostrar menú
     if (sesion.paso === 'inicio' || sesion.paso === 'menu') {
       sesiones[telefono] = { paso: 'menu' };
       await enviarMensaje(telefono, MENU);
@@ -144,5 +193,8 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
+// ══════════════════════════════════════════════
+// INICIAR SERVIDOR
+// ══════════════════════════════════════════════
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Bot corriendo en puerto ${PORT} ✓`));
