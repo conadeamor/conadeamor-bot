@@ -58,7 +58,7 @@ const RESPUESTAS = {
 Una guía práctica para familias y docentes que quieren entender y acompañar mejor a una persona con autismo.
 
 ✅ Incluye asesoría gratuita con Michelle
-💰 $757 + IVA
+💰 $757 
 
 🔗 Puedes adquirirlo aquí:
 https://michellerivero.com/servicios/
